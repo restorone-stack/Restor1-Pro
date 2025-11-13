@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restor-1 PRO - Интерактивная карта ресторанов</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Leaflet MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --dark: #1a202c;
+            --dark-light: #2d3748;
+            --green: #00ff66;
+            --green-hover: #00cc52;
+            --blue: #3182ce;
+            --red: #e53e3e;
+            --orange: #ed8936;
+            --gray: #718096;
+            --light-bg: #f7fafc;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--light-bg);
+            color: var(--dark);
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            background: var(--dark);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 2000;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--green), #00ffaa);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            cursor: pointer;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--green);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--gray);
+        }
+
+        /* Layout */
+        .main-container {
+            display: flex;
+            height: calc(100vh - 70px);
+            position: relative;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 400px;
+            background: white;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.1);
+            overflow-y: auto;
+            transition: transform 0.3s;
+            z-index: 1000;
+        }
+
+        .sidebar.collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            background: var(--dark-light);
+            color: white;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .sidebar-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        /* Search */
+        .search-container {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            padding-left: 3rem;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 1rem;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--green);
+            background: rgba(255,255,255,0.15);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 1.2rem;
+        }
+
+        /* Filters */
+        .filters-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .filter-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: block;
+            color: var(--dark);
+        }
+
+        .filter-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--green);
+        }
+
+        .filter-btn.active {
+            background: var(--green);
+            border-color: var(--green);
+            color: var(--dark);
+            font-weight: 600;
+        }
+
+        .slider-container {
+            padding: 0.5rem 0;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e2e8f0;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--green);
+            cursor: pointer;
+        }
+
+        .slider-value {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+
+        /* Results */
+        .results-section {
+            padding: 1.5rem;
+        }
+
+        .result-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .result-card:hover {
+            border-color: var(--green);
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,255,102,0.2);
+        }
+
+        .result-card.active {
+            border-color: var(--green);
+            background: rgba(0,255,102,0.05);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .card-rating {
+            background: var(--orange);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .card-type {
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-distance {
+            color: var(--blue);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-address {
+            color: var(--gray);
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .action-btn.primary {
+            background: var(--green);
+            color: var(--dark);
+        }
+
+        .action-btn.secondary {
+            background: var(--blue);
+            color: white;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        /* Map Container */
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Map Controls */
+        .map-controls {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .control-btn {
+            background: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: var(--green);
+            transform: scale(1.1);
+        }
+
+        .control-btn.active {
+            background: var(--green);
+            color: var(--dark);
+        }
+
+        /* Toggle Sidebar Button */
+        .toggle-sidebar-btn {
+            position: absolute;
+            left: 400px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1001;
+            background: white;
+            border: none;
+            padding: 1rem 0.5rem;
+            border-radius: 0 8px 8px 0;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .toggle-sidebar-btn:hover {
+            background: var(--green);
+        }
+
+        .sidebar.collapsed + .toggle-sidebar-btn {
+            left: 0;
+        }
+
+        /* Loading */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 2rem 3rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--green);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 90px;
+            right: 20px;
+            min-width: 300px;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+            font-weight: 600;
+        }
+
+        .notification.success {
+            background: var(--green);
+            color: var(--dark);
+        }
+
+        .notification.error {
+            background: var(--red);
+            color: white;
+        }
+
+        .notification.info {
+            background: var(--blue);
+            color: white;
+        }
+
+        /* Custom Marker Popup */
+        .custom-popup {
+            min-width: 250px;
+        }
+
+        .popup-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .popup-rating {
+            color: var(--orange);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .popup-info {
+            margin: 0.25rem 0;
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        .popup-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .popup-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .popup-btn.primary {
+            background: var(--green);
+            color: var(--dark);
+        }
+
+        .popup-btn.secondary {
+            background: var(--blue);
+            color: white;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                position: absolute;
+                height: 100%;
+            }
+            
+            .toggle-sidebar-btn {
+                left: auto;
+                right: 1rem;
+                top: 1rem;
+                transform: none;
+                border-radius: 8px;
+            }
+            
+            .header-stats {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="logo">Restor-1 PRO 🗺️</div>
+        <div class="header-stats">
+            <div class="stat-item">
+                <div class="stat-value" id="totalRestaurants">0</div>
+                <div class="stat-label">Заведений</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="visibleRestaurants">0</div>
+                <div class="stat-label">На карте</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="userDistance">--</div>
+                <div class="stat-label">Ближайший</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">🔍 Поиск и фильтры</div>
+                <div class="search-container">
+                    <span class="search-icon">🔎</span>
+                    <input type="text" 
+                           class="search-input" 
+                           id="searchInput"
+                           placeholder="Название, адрес, тип кухни..."
+                           oninput="handleSearch()">
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters-section">
+                <!-- Type Filter -->
+                <div class="filter-group">
+                    <label class="filter-label">🏪 Тип заведения</label>
+                    <div class="filter-buttons" id="typeFilters">
+                        <button class="filter-btn active" data-type="all" onclick="filterByType('all')">Все</button>
+                        <button class="filter-btn" data-type="Ресторан" onclick="filterByType('Ресторан')">Ресторан</button>
+                        <button class="filter-btn" data-type="Кафе" onclick="filterByType('Кафе')">Кафе</button>
+                        <button class="filter-btn" data-type="Бар" onclick="filterByType('Бар')">Бар</button>
+                    </div>
+                </div>
+
+                <!-- Rating Filter -->
+                <div class="filter-group">
+                    <label class="filter-label">⭐ Минимальный рейтинг: <span id="ratingValue">0</span></label>
+                    <div class="slider-container">
+                        <input type="range" 
+                               class="slider" 
+                               id="ratingSlider"
+                               min="0" 
+                               max="5" 
+                               step="0.5" 
+                               value="0"
+                               oninput="filterByRating(this.value)">
+                    </div>
+                </div>
+
+                <!-- Distance Filter -->
+                <div class="filter-group">
+                    <label class="filter-label">📍 Радиус поиска: <span id="radiusValue">5</span> км</label>
+                    <div class="slider-container">
+                        <input type="range" 
+                               class="slider" 
+                               id="radiusSlider"
+                               min="1" 
+                               max="20" 
+                               step="1" 
+                               value="5"
+                               oninput="filterByRadius(this.value)">
+                    </div>
+                </div>
+
+                <!-- Sort -->
+                <div class="filter-group">
+                    <label class="filter-label">📊 Сортировка</label>
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" onclick="sortResults('rating')">По рейтингу</button>
+                        <button class="filter-btn" onclick="sortResults('distance')">По расстоянию</button>
+                        <button class="filter-btn" onclick="sortResults('name')">По имени</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="results-section" id="resultsSection">
+                <div style="text-align: center; padding: 2rem; color: var(--gray);">
+                    Загрузка ресторанов...
+                </div>
+            </div>
+        </div>
+
+        <!-- Toggle Sidebar Button -->
+        <button class="toggle-sidebar-btn" onclick="toggleSidebar()">
+            <span id="toggleIcon">◀</span>
+        </button>
+
+        <!-- Map Container -->
+        <div class="map-container">
+            <div id="map"></div>
+            
+            <!-- Map Controls -->
+            <div class="map-controls">
+                <button class="control-btn" 
+                        id="locationBtn"
+                        onclick="getUserLocation()" 
+                        title="Моё местоположение">
+                    📍
+                </button>
+                <button class="control-btn" 
+                        onclick="findNearest()" 
+                        title="Ближайший ресторан">
+                    🎯
+                </button>
+                <button class="control-btn" 
+                        id="clusterBtn"
+                        onclick="toggleClusters()" 
+                        title="Кластеры">
+                    🗂️
+                </button>
+                <button class="control-btn" 
+                        onclick="resetMap()" 
+                        title="Сбросить">
+                    🔄
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+        <div class="loading-content">
+            <div class="spinner"></div>
+            <div>Загрузка данных...</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    
+    <script>
+        // Configuration
+        const API_URL = 'http://localhost:3000';
+        const ALMATY_CENTER = [43.2380, 76.9456];
+        
+        // State
+        let map;
+        let allRestaurants = [];
+        let filteredRestaurants = [];
+        let markers = [];
+        let markerClusterGroup;
+        let userMarker = null;
+        let userLocation = null;
+        let selectedRestaurant = null;
+        let routeLine = null;
+        let useClusters = true;
+
+        // Filters State
+        let filters = {
+            search: '',
+            type: 'all',
+            minRating: 0,
+            maxRadius: 5,
+            sortBy: 'rating'
+        };
+
+        // Initialize Map
+        function initMap() {
+            map = L.map('map').setView(ALMATY_CENTER, 12);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Initialize marker cluster group
+            markerClusterGroup = L.markerClusterGroup({
+                chunkedLoading: true,
+                spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false,
+                zoomToBoundsOnClick: true
+            });
+            
+            map.addLayer(markerClusterGroup);
+        }
+
+        // Load Restaurants
+        async function loadRestaurants() {
+            showLoading(true);
+            
+            try {
+                const response = await fetch(`${API_URL}/api/restaurants`);
+                if (!response.ok) throw new Error('Server error');
+                
+                allRestaurants = await response.json();
+                filteredRestaurants = [...allRestaurants];
+                
+                updateStats();
+                applyFilters();
+                showNotification(`Загружено ${allRestaurants.length} заведений`, 'success');
+            } catch (error) {
+                console.error('Error loading restaurants:', error);
+                showNotification('Ошибка загрузки. Запустите Backend сервер!', 'error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Create Marker
+        function createMarker(restaurant, color = 'blue') {
+            const iconUrl = `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`;
+            
+            const marker = L.marker([restaurant.latitude, restaurant.longitude], {
+                icon: L.icon({
+                    iconUrl: iconUrl,
+                    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41],
+                    popupAnchor: [1, -34]
+                })
+            });
+
+            const distance = userLocation ? 
+                calculateDistance(userLocation.lat, userLocation.lng, restaurant.latitude, restaurant.longitude) : 
+                null;
+
+            const popupContent = `
+                <div class="custom-popup">
+                    <div class="popup-header">${restaurant.name}</div>
+                    <div class="popup-rating">⭐ ${restaurant.rating}</div>
+                    <div class="popup-info">📍 ${restaurant.type}</div>
+                    <div class="popup-info">📍 ${restaurant.address}</div>
+                    <div class="popup-info">📞 ${restaurant.phone}</div>
+                    ${distance ? `<div class="popup-info">🚗 ${distance.toFixed(1)} км от вас</div>` : ''}
+                    <div class="popup-actions">
+                        <button class="popup-btn primary" onclick="focusRestaurant(${restaurant.id})">Подробнее</button>
+                        ${userLocation ? `<button class="popup-btn secondary" onclick="showRoute(${restaurant.id})">Маршрут</button>` : ''}
+                    </div>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent);
+            marker.restaurant = restaurant;
+            
+            marker.on('click', () => {
+                selectedRestaurant = restaurant;
+                highlightRestaurantCard(restaurant.id);
+            });
+
+            return marker;
+        }
+
+        // Display Markers
+        function displayMarkers() {
+            // Clear existing markers
+            markers.forEach(marker => {
+                markerClusterGroup.removeLayer(marker);
+                map.removeLayer(marker);
+            });
+            markers = [];
+
+            // Add new markers
+            filteredRestaurants.forEach(restaurant => {
+                if (restaurant.latitude && restaurant.longitude) {
+                    const color = getRatingColor(restaurant.rating);
+                    const marker = createMarker(restaurant, color);
+                    markers.push(marker);
+                    
+                    if (useClusters) {
+                        markerClusterGroup.addLayer(marker);
+                    } else {
+                        marker.addTo(map);
+                    }
+                }
+            });
+
+            // Update visible count
+            document.getElementById('visibleRestaurants').textContent = filteredRestaurants.length;
+        }
+
+        // Get Rating Color
+        function getRatingColor(rating) {
+            if (rating >= 4.8) return 'green';
+            if (rating >= 4.5) return 'blue';
+            if (rating >= 4.0) return 'orange';
+            return 'red';
+        }
+
+        // Display Results in Sidebar
+        function displayResults() {
+            const container = document.getElementById('resultsSection');
+            
+            if (filteredRestaurants.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--gray);">Ничего не найдено</div>';
+                return;
+            }
+
+            container.innerHTML = filteredRestaurants.map(restaurant => {
+                const distance = userLocation ? 
+                    calculateDistance(userLocation.lat, userLocation.lng, restaurant.latitude, restaurant.longitude) : 
+                    null;
+
+                return `
+                    <div class="result-card" id="card-${restaurant.id}" onclick="focusRestaurant(${restaurant.id})">
+                        <div class="card-header">
+                            <div class="card-name">${restaurant.name}</div>
+                            <div class="card-rating">⭐ ${restaurant.rating}</div>
+                        </div>
+                        <div class="card-type">🏪 ${restaurant.type}</div>
+                        ${distance ? `<div class="card-distance">📍 ${distance.toFixed(1)} км от вас</div>` : ''}
+                        <div class="card-address">${restaurant.address}</div>
+                        <div class="card-actions">
+                            <button class="action-btn primary" onclick="event.stopPropagation(); focusRestaurant(${restaurant.id})">
+                                На карте
+                            </button>
+                            ${userLocation ? `
+                            <button class="action-btn secondary" onclick="event.stopPropagation(); showRoute(${restaurant.id})">
+                                Маршрут
+                            </button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Apply Filters
+        function applyFilters() {
+            filteredRestaurants = allRestaurants.filter(restaurant => {
+                // Search filter
+                if (filters.search) {
+                    const searchLower = filters.search.toLowerCase();
+                    const matchSearch = 
+                        restaurant.name.toLowerCase().includes(searchLower) ||
+                        restaurant.address.toLowerCase().includes(searchLower) ||
+                        restaurant.type.toLowerCase().includes(searchLower);
+                    if (!matchSearch) return false;
+                }
+
+                // Type filter
+                if (filters.type !== 'all' && restaurant.type !== filters.type) {
+                    return false;
+                }
+
+                // Rating filter
+                if (restaurant.rating < filters.minRating) {
+                    return false;
+                }
+
+                // Distance filter
+                if (userLocation && filters.maxRadius) {
+                    const distance = calculateDistance(
+                        userLocation.lat, 
+                        userLocation.lng, 
+                        restaurant.latitude, 
+                        restaurant.longitude
+                    );
+                    if (distance > filters.maxRadius) {
+                        return false;
+                    }
+                }
+
+                return true;
+            });
+
+            // Sort
+            sortResults(filters.sortBy);
+            
+            displayMarkers();
+            displayResults();
+            updateStats();
+        }
+
+        // Handle Search
+        function handleSearch() {
+            filters.search = document.getElementById('searchInput').value;
+            applyFilters();
+        }
+
+        // Filter by Type
+        function filterByType(type) {
+            filters.type = type;
+            
+            // Update UI
+            document.querySelectorAll('[data-type]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.type === type);
+            });
+            
+            applyFilters();
+        }
+
+        // Filter by Rating
+        function filterByRating(value) {
+            filters.minRating = parseFloat(value);
+            document.getElementById('ratingValue').textContent = value;
+            applyFilters();
+        }
+
+        // Filter by Radius
+        function filterByRadius(value) {
+            filters.maxRadius = parseInt(value);
+            document.getElementById('radiusValue').textContent = value;
+            
+            if (userLocation) {
+                applyFilters();
+            } else {
+                showNotification('Сначала определите своё местоположение', 'info');
+            }
+        }
+
+        // Sort Results
+        function sortResults(sortBy) {
+            filters.sortBy = sortBy;
+            
+            filteredRestaurants.sort((a, b) => {
+                switch (sortBy) {
+                    case 'rating':
+                        return b.rating - a.rating;
+                    case 'distance':
+                        if (!userLocation) return 0;
+                        const distA = calculateDistance(userLocation.lat, userLocation.lng, a.latitude, a.longitude);
+                        const distB = calculateDistance(userLocation.lat, userLocation.lng, b.latitude, b.longitude);
+                        return distA - distB;
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    default:
+                        return 0;
+                }
+            });
+            
+            displayResults();
+        }
+
+        // Get User Location
+        function getUserLocation() {
+            if (!navigator.geolocation) {
+                showNotification('Геолокация не поддерживается', 'error');
+                return;
+            }
+
+            showNotification('Определяем ваше местоположение...', 'info');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    userLocation = {
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude
+                    };
+
+                    // Remove old marker
+                    if (userMarker) {
+                        map.removeLayer(userMarker);
+                    }
+
+                    // Add new marker
+                    userMarker = L.marker([userLocation.lat, userLocation.lng], {
+                        icon: L.icon({
+                            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+                            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                            iconSize: [25, 41],
+                            iconAnchor: [12, 41]
+                        })
+                    }).addTo(map);
+
+                    userMarker.bindPopup('<b>Вы здесь</b>').openPopup();
+                    
+                    map.setView([userLocation.lat, userLocation.lng], 14);
+                    
+                    document.getElementById('locationBtn').classList.add('active');
+                    
+                    showNotification('Местоположение определено!', 'success');
+                    
+                    // Recalculate distances
+                    applyFilters();
+                    updateNearestDistance();
+                },
+                (error) => {
+                    showNotification('Не удалось определить местоположение', 'error');
+                    console.error(error);
+                }
+            );
+        }
+
+        // Calculate Distance (Haversine formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Find Nearest Restaurant
+        function findNearest() {
+            if (!userLocation) {
+                getUserLocation();
+                return;
+            }
+
+            let nearest = null;
+            let minDistance = Infinity;
+
+            allRestaurants.forEach(restaurant => {
+                const distance = calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    restaurant.latitude,
+                    restaurant.longitude
+                );
+
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = restaurant;
+                }
+            });
+
+            if (nearest) {
+                focusRestaurant(nearest.id);
+                showNotification(`Ближайший: ${nearest.name} (${minDistance.toFixed(1)} км)`, 'success');
+            }
+        }
+
+        // Focus on Restaurant
+        function focusRestaurant(id) {
+            const restaurant = allRestaurants.find(r => r.id === id);
+            if (!restaurant) return;
+
+            selectedRestaurant = restaurant;
+            
+            // Center map
+            map.setView([restaurant.latitude, restaurant.longitude], 16);
+            
+            // Open popup
+            const marker = markers.find(m => m.restaurant.id === id);
+            if (marker) {
+                marker.openPopup();
+            }
+
+            // Highlight card
+            highlightRestaurantCard(id);
+
+            // Scroll to card
+            const card = document.getElementById(`card-${id}`);
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        // Highlight Restaurant Card
+        function highlightRestaurantCard(id) {
+            document.querySelectorAll('.result-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            const card = document.getElementById(`card-${id}`);
+            if (card) {
+                card.classList.add('active');
+            }
+        }
+
+        // Show Route
+        function showRoute(id) {
+            if (!userLocation) {
+                showNotification('Сначала определите своё местоположение', 'error');
+                return;
+            }
+
+            const restaurant = allRestaurants.find(r => r.id === id);
+            if (!restaurant) return;
+
+            // Remove old route
+            if (routeLine) {
+                map.removeLayer(routeLine);
+            }
+
+            // Draw route line
+            routeLine = L.polyline([
+                [userLocation.lat, userLocation.lng],
+                [restaurant.latitude, restaurant.longitude]
+            ], {
+                color: '#00ff66',
+                weight: 4,
+                opacity: 0.7,
+                dashArray: '10, 10'
+            }).addTo(map);
+
+            // Fit bounds to show route
+            const bounds = L.latLngBounds([
+                [userLocation.lat, userLocation.lng],
+                [restaurant.latitude, restaurant.longitude]
+            ]);
+            map.fitBounds(bounds, { padding: [50, 50] });
+
+            const distance = calculateDistance(
+                userLocation.lat,
+                userLocation.lng,
+                restaurant.latitude,
+                restaurant.longitude
+            );
+
+            showNotification(`Маршрут построен: ${distance.toFixed(1)} км`, 'success');
+        }
+
+        // Toggle Clusters
+        function toggleClusters() {
+            useClusters = !useClusters;
+            document.getElementById('clusterBtn').classList.toggle('active', useClusters);
+            displayMarkers();
+            showNotification(useClusters ? 'Кластеры включены' : 'Кластеры выключены', 'info');
+        }
+
+        // Reset Map
+        function resetMap() {
+            map.setView(ALMATY_CENTER, 12);
+            filters = {
+                search: '',
+                type: 'all',
+                minRating: 0,
+                maxRadius: 5,
+                sortBy: 'rating'
+            };
+            
+            // Reset UI
+            document.getElementById('searchInput').value = '';
+            document.getElementById('ratingSlider').value = 0;
+            document.getElementById('ratingValue').textContent = '0';
+            document.getElementById('radiusSlider').value = 5;
+            document.getElementById('radiusValue').textContent = '5';
+            
+            filterByType('all');
+            
+            if (routeLine) {
+                map.removeLayer(routeLine);
+                routeLine = null;
+            }
+            
+            showNotification('Карта сброшена', 'info');
+        }
+
+        // Toggle Sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.getElementById('toggleIcon');
+            
+            sidebar.classList.toggle('collapsed');
+            icon.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+        }
+
+        // Update Stats
+        function updateStats() {
+            document.getElementById('totalRestaurants').textContent = allRestaurants.length;
+            document.getElementById('visibleRestaurants').textContent = filteredRestaurants.length;
+        }
+
+        // Update Nearest Distance
+        function updateNearestDistance() {
+            if (!userLocation) {
+                document.getElementById('userDistance').textContent = '--';
+                return;
+            }
+
+            let minDistance = Infinity;
+            
+            allRestaurants.forEach(restaurant => {
+                const distance = calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    restaurant.latitude,
+                    restaurant.longitude
+                );
+                minDistance = Math.min(minDistance, distance);
+            });
+
+            document.getElementById('userDistance').textContent = minDistance.toFixed(1) + ' км';
+        }
+
+        // Show Loading
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').style.display = show ? 'flex' : 'none';
+        }
+
+        // Show Notification
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 4000);
+        }
+
+        // Initialize
+        initMap();
+        loadRestaurants();
+    </script>
+</body>
+</html>
