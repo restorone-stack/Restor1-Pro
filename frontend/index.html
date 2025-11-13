@@ -12,9 +12,23 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
+        :root {
+            --dark: #1a202c;
+            --dark-light: #2d3748;
+            --green: #00ff66;
+            --green-hover: #00cc52;
+            --blue: #3182ce;
+            --red: #e53e3e;
+            --orange: #ed8936;
+            --gray: #718096;
+            --light-bg: #f7fafc;
+        }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -54,6 +68,36 @@
             align-items: center;
         }
 
+        /* Language Switcher */
+        .language-switcher {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .lang-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .lang-btn:hover {
+            border-color: var(--green);
+            background: rgba(0,255,102,0.1);
+        }
+
+        .lang-btn.active {
+            background: var(--green);
+            border-color: var(--green);
+            color: var(--dark);
+        }
+
         .stat-item {
             display: flex;
             flex-direction: column;
@@ -84,12 +128,14 @@
             background: white;
             box-shadow: 2px 0 12px rgba(0,0,0,0.1);
             overflow-y: auto;
-            transition: transform 0.3s;
+            transition: transform 0.4s cubic-bezier(0.4, 0.0, 0.2, 1), flex 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-origin: left;
             z-index: 1000;
         }
 
         .sidebar.collapsed {
-            transform: translateX(-100%);
+            transform: scaleX(0);
+            flex: 0 0 0;
         }
 
         .sidebar-header {
@@ -445,6 +491,30 @@
             color: white;
         }
 
+        /* Routing Container Styling */
+        .routing-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            padding: 0.5rem;
+            max-width: 300px;
+        }
+
+        .leaflet-routing-container {
+            background: white !important;
+            border-radius: 8px !important;
+        }
+
+        .leaflet-routing-alt {
+            padding: 0.5rem !important;
+            background: white !important;
+        }
+
+        .leaflet-routing-alt h3 {
+            font-size: 0.9rem !important;
+            color: var(--dark) !important;
+        }
+
         /* Custom Marker Popup */
         .custom-popup {
             min-width: 250px;
@@ -524,16 +594,22 @@
         <div class="header-stats">
             <div class="stat-item">
                 <div class="stat-value" id="totalRestaurants">0</div>
-                <div class="stat-label">Заведений</div>
+                <div class="stat-label" data-i18n="stats.total">Заведений</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value" id="visibleRestaurants">0</div>
-                <div class="stat-label">На карте</div>
+                <div class="stat-label" data-i18n="stats.visible">На карте</div>
             </div>
             <div class="stat-item">
                 <div class="stat-value" id="userDistance">--</div>
-                <div class="stat-label">Ближайший</div>
+                <div class="stat-label" data-i18n="stats.nearest">Ближайший</div>
             </div>
+        </div>
+        <!-- Language Switcher -->
+        <div class="language-switcher">
+            <button class="lang-btn active" onclick="changeLanguage('ru')">RU</button>
+            <button class="lang-btn" onclick="changeLanguage('en')">EN</button>
+            <button class="lang-btn" onclick="changeLanguage('kz')">KZ</button>
         </div>
     </div>
 
@@ -542,12 +618,13 @@
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-title">🔍 Поиск и фильтры</div>
+                <div class="sidebar-title" data-i18n="sidebar.title">🔍 Поиск и фильтры</div>
                 <div class="search-container">
                     <span class="search-icon">🔎</span>
                     <input type="text" 
                            class="search-input" 
                            id="searchInput"
+                           data-i18n-placeholder="search.placeholder"
                            placeholder="Название, адрес, тип кухни..."
                            oninput="handleSearch()">
                 </div>
@@ -557,18 +634,18 @@
             <div class="filters-section">
                 <!-- Type Filter -->
                 <div class="filter-group">
-                    <label class="filter-label">🏪 Тип заведения</label>
+                    <label class="filter-label" data-i18n="filters.type">🏪 Тип заведения</label>
                     <div class="filter-buttons" id="typeFilters">
-                        <button class="filter-btn active" data-type="all" onclick="filterByType('all')">Все</button>
-                        <button class="filter-btn" data-type="Ресторан" onclick="filterByType('Ресторан')">Ресторан</button>
-                        <button class="filter-btn" data-type="Кафе" onclick="filterByType('Кафе')">Кафе</button>
-                        <button class="filter-btn" data-type="Бар" onclick="filterByType('Бар')">Бар</button>
+                        <button class="filter-btn active" data-type="all" data-i18n="filters.all" onclick="filterByType('all')">Все</button>
+                        <button class="filter-btn" data-type="Ресторан" data-i18n="filters.restaurant" onclick="filterByType('Ресторан')">Ресторан</button>
+                        <button class="filter-btn" data-type="Кафе" data-i18n="filters.cafe" onclick="filterByType('Кафе')">Кафе</button>
+                        <button class="filter-btn" data-type="Бар" data-i18n="filters.bar" onclick="filterByType('Бар')">Бар</button>
                     </div>
                 </div>
 
                 <!-- Rating Filter -->
                 <div class="filter-group">
-                    <label class="filter-label">⭐ Минимальный рейтинг: <span id="ratingValue">0</span></label>
+                    <label class="filter-label"><span data-i18n="filters.rating">⭐ Минимальный рейтинг</span>: <span id="ratingValue">0</span></label>
                     <div class="slider-container">
                         <input type="range" 
                                class="slider" 
@@ -583,7 +660,7 @@
 
                 <!-- Distance Filter -->
                 <div class="filter-group">
-                    <label class="filter-label">📍 Радиус поиска: <span id="radiusValue">5</span> км</label>
+                    <label class="filter-label"><span data-i18n="filters.radius">📍 Радиус поиска</span>: <span id="radiusValue">5</span> <span data-i18n="units.km">км</span></label>
                     <div class="slider-container">
                         <input type="range" 
                                class="slider" 
@@ -598,18 +675,18 @@
 
                 <!-- Sort -->
                 <div class="filter-group">
-                    <label class="filter-label">📊 Сортировка</label>
-                    <div class="filter-buttons">
-                        <button class="filter-btn active" onclick="sortResults('rating')">По рейтингу</button>
-                        <button class="filter-btn" onclick="sortResults('distance')">По расстоянию</button>
-                        <button class="filter-btn" onclick="sortResults('name')">По имени</button>
+                    <label class="filter-label" data-i18n="filters.sort">📊 Сортировка</label>
+                    <div class="filter-buttons" id="sortButtons">
+                        <button class="filter-btn active" data-sort="rating" data-i18n="sort.rating" onclick="sortResults('rating')">По рейтингу</button>
+                        <button class="filter-btn" data-sort="distance" data-i18n="sort.distance" onclick="sortResults('distance')">По расстоянию</button>
+                        <button class="filter-btn" data-sort="name" data-i18n="sort.name" onclick="sortResults('name')">По имени</button>
                     </div>
                 </div>
             </div>
 
             <!-- Results -->
             <div class="results-section" id="resultsSection">
-                <div style="text-align: center; padding: 2rem; color: var(--gray);">
+                <div style="text-align: center; padding: 2rem; color: var(--gray);" data-i18n="loading">
                     Загрузка ресторанов...
                 </div>
             </div>
@@ -629,22 +706,26 @@
                 <button class="control-btn" 
                         id="locationBtn"
                         onclick="getUserLocation()" 
+                        data-i18n-title="buttons.location"
                         title="Моё местоположение">
                     📍
                 </button>
                 <button class="control-btn" 
                         onclick="findNearest()" 
+                        data-i18n-title="buttons.nearest"
                         title="Ближайший ресторан">
                     🎯
                 </button>
                 <button class="control-btn" 
                         id="clusterBtn"
                         onclick="toggleClusters()" 
+                        data-i18n-title="buttons.clusters"
                         title="Кластеры">
                     🗂️
                 </button>
                 <button class="control-btn" 
                         onclick="resetMap()" 
+                        data-i18n-title="buttons.reset"
                         title="Сбросить">
                     🔄
                 </button>
@@ -663,11 +744,198 @@
     <!-- Scripts -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
     
     <script>
         // Configuration
         const API_URL = 'http://localhost:3000';
         const ALMATY_CENTER = [43.2380, 76.9456];
+        
+        // Translations
+        const translations = {
+            ru: {
+                'stats.total': 'Заведений',
+                'stats.visible': 'На карте',
+                'stats.nearest': 'Ближайший',
+                'sidebar.title': '🔍 Поиск и фильтры',
+                'search.placeholder': 'Название, адрес, тип кухни...',
+                'filters.type': '🏪 Тип заведения',
+                'filters.all': 'Все',
+                'filters.restaurant': 'Ресторан',
+                'filters.cafe': 'Кафе',
+                'filters.bar': 'Бар',
+                'filters.rating': '⭐ Минимальный рейтинг',
+                'filters.radius': '📍 Радиус поиска',
+                'filters.sort': '📊 Сортировка',
+                'sort.rating': 'По рейтингу',
+                'sort.distance': 'По расстоянию',
+                'sort.name': 'По имени',
+                'units.km': 'км',
+                'loading': 'Загрузка ресторанов...',
+                'buttons.location': 'Моё местоположение',
+                'buttons.nearest': 'Ближайший ресторан',
+                'buttons.clusters': 'Кластеры',
+                'buttons.reset': 'Сбросить',
+                'buttons.map': 'На карте',
+                'buttons.route': 'Маршрут',
+                'buttons.details': 'Подробнее',
+                'notifications.loaded': 'Загружено',
+                'notifications.restaurants': 'заведений',
+                'notifications.error': 'Ошибка загрузки. Запустите Backend сервер!',
+                'notifications.location': 'Определяем ваше местоположение...',
+                'notifications.locationSuccess': 'Местоположение определено!',
+                'notifications.locationError': 'Не удалось определить местоположение',
+                'notifications.nearest': 'Ближайший',
+                'notifications.route': 'Маршрут',
+                'notifications.routeError': 'Не удалось построить маршрут',
+                'notifications.needLocation': 'Сначала определите своё местоположение',
+                'notifications.building': 'Строим маршрут...',
+                'notifications.clusters': 'Кластеры включены',
+                'notifications.clustersOff': 'Кластеры выключены',
+                'notifications.reset': 'Карта сброшена',
+                'notFound': 'Ничего не найдено'
+            },
+            en: {
+                'stats.total': 'Places',
+                'stats.visible': 'On Map',
+                'stats.nearest': 'Nearest',
+                'sidebar.title': '🔍 Search & Filters',
+                'search.placeholder': 'Name, address, cuisine type...',
+                'filters.type': '🏪 Place Type',
+                'filters.all': 'All',
+                'filters.restaurant': 'Restaurant',
+                'filters.cafe': 'Cafe',
+                'filters.bar': 'Bar',
+                'filters.rating': '⭐ Minimum Rating',
+                'filters.radius': '📍 Search Radius',
+                'filters.sort': '📊 Sort',
+                'sort.rating': 'By Rating',
+                'sort.distance': 'By Distance',
+                'sort.name': 'By Name',
+                'units.km': 'km',
+                'loading': 'Loading restaurants...',
+                'buttons.location': 'My Location',
+                'buttons.nearest': 'Nearest Restaurant',
+                'buttons.clusters': 'Clusters',
+                'buttons.reset': 'Reset',
+                'buttons.map': 'On Map',
+                'buttons.route': 'Route',
+                'buttons.details': 'Details',
+                'notifications.loaded': 'Loaded',
+                'notifications.restaurants': 'places',
+                'notifications.error': 'Loading error. Start Backend server!',
+                'notifications.location': 'Getting your location...',
+                'notifications.locationSuccess': 'Location found!',
+                'notifications.locationError': 'Could not get location',
+                'notifications.nearest': 'Nearest',
+                'notifications.route': 'Route',
+                'notifications.routeError': 'Could not build route',
+                'notifications.needLocation': 'Please enable location first',
+                'notifications.building': 'Building route...',
+                'notifications.clusters': 'Clusters enabled',
+                'notifications.clustersOff': 'Clusters disabled',
+                'notifications.reset': 'Map reset',
+                'notFound': 'Nothing found'
+            },
+            kz: {
+                'stats.total': 'Мекемелер',
+                'stats.visible': 'Картада',
+                'stats.nearest': 'Жақын',
+                'sidebar.title': '🔍 Іздеу және сүзгілер',
+                'search.placeholder': 'Атауы, мекенжайы, ас түрі...',
+                'filters.type': '🏪 Мекеме түрі',
+                'filters.all': 'Барлығы',
+                'filters.restaurant': 'Мейрамхана',
+                'filters.cafe': 'Кафе',
+                'filters.bar': 'Бар',
+                'filters.rating': '⭐ Ең төменгі рейтинг',
+                'filters.radius': '📍 Іздеу радиусы',
+                'filters.sort': '📊 Сұрыптау',
+                'sort.rating': 'Рейтинг бойынша',
+                'sort.distance': 'Қашықтық бойынша',
+                'sort.name': 'Атау бойынша',
+                'units.km': 'км',
+                'loading': 'Мейрамханалар жүктелуде...',
+                'buttons.location': 'Менің орным',
+                'buttons.nearest': 'Жақын мейрамхана',
+                'buttons.clusters': 'Кластерлер',
+                'buttons.reset': 'Тастау',
+                'buttons.map': 'Картада',
+                'buttons.route': 'Бағыт',
+                'buttons.details': 'Толығырақ',
+                'notifications.loaded': 'Жүктелді',
+                'notifications.restaurants': 'мекеме',
+                'notifications.error': 'Жүктеу қатесі. Backend серверін іске қосыңыз!',
+                'notifications.location': 'Орныңызды анықтауда...',
+                'notifications.locationSuccess': 'Орын анықталды!',
+                'notifications.locationError': 'Орынды анықтау мүмкін емес',
+                'notifications.nearest': 'Жақын',
+                'notifications.route': 'Бағыт',
+                'notifications.routeError': 'Бағытты құру мүмкін емес',
+                'notifications.needLocation': 'Алдымен орныңызды анықтаңыз',
+                'notifications.building': 'Бағыт құрылуда...',
+                'notifications.clusters': 'Кластерлер қосылды',
+                'notifications.clustersOff': 'Кластерлер өшірілді',
+                'notifications.reset': 'Карта тасталды',
+                'notFound': 'Ештеңе табылмады'
+            }
+        };
+
+        let currentLanguage = 'ru';
+
+        // Change Language
+        function changeLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('language', lang);
+            
+            // Update UI buttons
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update all translations
+            updateTranslations();
+        }
+
+        // Update Translations
+        function updateTranslations() {
+            const lang = translations[currentLanguage];
+            
+            // Update text content
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (lang[key]) {
+                    el.textContent = lang[key];
+                }
+            });
+            
+            // Update placeholders
+            document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+                const key = el.getAttribute('data-i18n-placeholder');
+                if (lang[key]) {
+                    el.placeholder = lang[key];
+                }
+            });
+            
+            // Update titles
+            document.querySelectorAll('[data-i18n-title]').forEach(el => {
+                const key = el.getAttribute('data-i18n-title');
+                if (lang[key]) {
+                    el.title = lang[key];
+                }
+            });
+            
+            // Re-render results if they exist
+            if (filteredRestaurants.length > 0) {
+                displayResults();
+            }
+        }
+
+        // Get translation
+        function t(key) {
+            return translations[currentLanguage][key] || key;
+        }
         
         // State
         let map;
@@ -679,6 +947,7 @@
         let userLocation = null;
         let selectedRestaurant = null;
         let routeLine = null;
+        let routingControl = null;
         let useClusters = true;
 
         // Filters State
@@ -723,10 +992,10 @@
                 
                 updateStats();
                 applyFilters();
-                showNotification(`Загружено ${allRestaurants.length} заведений`, 'success');
+                showNotification(`${t('notifications.loaded')} ${allRestaurants.length} ${t('notifications.restaurants')}`, 'success');
             } catch (error) {
                 console.error('Error loading restaurants:', error);
-                showNotification('Ошибка загрузки. Запустите Backend сервер!', 'error');
+                showNotification(t('notifications.error'), 'error');
             } finally {
                 showLoading(false);
             }
@@ -750,22 +1019,20 @@
                 calculateDistance(userLocation.lat, userLocation.lng, restaurant.latitude, restaurant.longitude) : 
                 null;
 
-            const popupContent = `
+                    const popupContent = `
                 <div class="custom-popup">
                     <div class="popup-header">${restaurant.name}</div>
                     <div class="popup-rating">⭐ ${restaurant.rating}</div>
                     <div class="popup-info">📍 ${restaurant.type}</div>
                     <div class="popup-info">📍 ${restaurant.address}</div>
                     <div class="popup-info">📞 ${restaurant.phone}</div>
-                    ${distance ? `<div class="popup-info">🚗 ${distance.toFixed(1)} км от вас</div>` : ''}
+                    ${distance ? `<div class="popup-info">🚗 ${distance.toFixed(1)} ${t('units.km')}</div>` : ''}
                     <div class="popup-actions">
-                        <button class="popup-btn primary" onclick="focusRestaurant(${restaurant.id})">Подробнее</button>
-                        ${userLocation ? `<button class="popup-btn secondary" onclick="showRoute(${restaurant.id})">Маршрут</button>` : ''}
+                        <button class="popup-btn primary" onclick="focusRestaurant(${restaurant.id})">${t('buttons.details')}</button>
+                        ${userLocation ? `<button class="popup-btn secondary" onclick="showRoute(${restaurant.id})">${t('buttons.route')}</button>` : ''}
                     </div>
                 </div>
-            `;
-
-            marker.bindPopup(popupContent);
+            `;            marker.bindPopup(popupContent);
             marker.restaurant = restaurant;
             
             marker.on('click', () => {
@@ -817,7 +1084,7 @@
             const container = document.getElementById('resultsSection');
             
             if (filteredRestaurants.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 2rem; color: var(--gray);">Ничего не найдено</div>';
+                container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--gray);">${t('notFound')}</div>`;
                 return;
             }
 
@@ -833,15 +1100,15 @@
                             <div class="card-rating">⭐ ${restaurant.rating}</div>
                         </div>
                         <div class="card-type">🏪 ${restaurant.type}</div>
-                        ${distance ? `<div class="card-distance">📍 ${distance.toFixed(1)} км от вас</div>` : ''}
+                        ${distance ? `<div class="card-distance">📍 ${distance.toFixed(1)} ${t('units.km')}</div>` : ''}
                         <div class="card-address">${restaurant.address}</div>
                         <div class="card-actions">
                             <button class="action-btn primary" onclick="event.stopPropagation(); focusRestaurant(${restaurant.id})">
-                                На карте
+                                ${t('buttons.map')}
                             </button>
                             ${userLocation ? `
                             <button class="action-btn secondary" onclick="event.stopPropagation(); showRoute(${restaurant.id})">
-                                Маршрут
+                                ${t('buttons.route')}
                             </button>` : ''}
                         </div>
                     </div>
@@ -936,6 +1203,11 @@
         // Sort Results
         function sortResults(sortBy) {
             filters.sortBy = sortBy;
+            
+            // Update UI - highlight active sort button
+            document.querySelectorAll('[data-sort]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.sort === sortBy);
+            });
             
             filteredRestaurants.sort((a, b) => {
                 switch (sortBy) {
@@ -1087,7 +1359,7 @@
             }
         }
 
-        // Show Route
+        // Show Route with OSRM
         function showRoute(id) {
             if (!userLocation) {
                 showNotification('Сначала определите своё местоположение', 'error');
@@ -1098,36 +1370,90 @@
             if (!restaurant) return;
 
             // Remove old route
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+            }
             if (routeLine) {
                 map.removeLayer(routeLine);
+                routeLine = null;
             }
 
-            // Draw route line
-            routeLine = L.polyline([
-                [userLocation.lat, userLocation.lng],
-                [restaurant.latitude, restaurant.longitude]
-            ], {
-                color: '#00ff66',
-                weight: 4,
-                opacity: 0.7,
-                dashArray: '10, 10'
+            showNotification('Строим маршрут...', 'info');
+
+            // Create routing control with OSRM
+            routingControl = L.Routing.control({
+                waypoints: [
+                    L.latLng(userLocation.lat, userLocation.lng),
+                    L.latLng(restaurant.latitude, restaurant.longitude)
+                ],
+                router: L.Routing.osrmv1({
+                    serviceUrl: 'https://router.project-osrm.org/route/v1',
+                    profile: 'driving' // driving, walking, cycling
+                }),
+                routeWhileDragging: false,
+                addWaypoints: false,
+                draggableWaypoints: false,
+                fitSelectedRoutes: true,
+                showAlternatives: false,
+                lineOptions: {
+                    styles: [{
+                        color: '#00ff66',
+                        opacity: 0.8,
+                        weight: 5
+                    }]
+                },
+                createMarker: function() { return null; }, // Don't create markers
+                show: true,
+                collapsible: true,
+                containerClassName: 'routing-container'
             }).addTo(map);
 
-            // Fit bounds to show route
-            const bounds = L.latLngBounds([
-                [userLocation.lat, userLocation.lng],
-                [restaurant.latitude, restaurant.longitude]
-            ]);
-            map.fitBounds(bounds, { padding: [50, 50] });
+            // Handle routing events
+            routingControl.on('routesfound', function(e) {
+                const routes = e.routes;
+                const summary = routes[0].summary;
+                const distance = (summary.totalDistance / 1000).toFixed(1);
+                const time = Math.round(summary.totalTime / 60);
+                
+                showNotification(`Маршрут: ${distance} км, ~${time} мин`, 'success');
+            });
 
-            const distance = calculateDistance(
-                userLocation.lat,
-                userLocation.lng,
-                restaurant.latitude,
-                restaurant.longitude
-            );
+            routingControl.on('routingerror', function(e) {
+                console.error('Routing error:', e);
+                showNotification('Не удалось построить маршрут', 'error');
+                
+                // Fallback: draw straight line
+                if (routingControl) {
+                    map.removeControl(routingControl);
+                    routingControl = null;
+                }
+                
+                routeLine = L.polyline([
+                    [userLocation.lat, userLocation.lng],
+                    [restaurant.latitude, restaurant.longitude]
+                ], {
+                    color: '#00ff66',
+                    weight: 4,
+                    opacity: 0.7,
+                    dashArray: '10, 10'
+                }).addTo(map);
 
-            showNotification(`Маршрут построен: ${distance.toFixed(1)} км`, 'success');
+                const bounds = L.latLngBounds([
+                    [userLocation.lat, userLocation.lng],
+                    [restaurant.latitude, restaurant.longitude]
+                ]);
+                map.fitBounds(bounds, { padding: [50, 50] });
+
+                const distance = calculateDistance(
+                    userLocation.lat,
+                    userLocation.lng,
+                    restaurant.latitude,
+                    restaurant.longitude
+                );
+
+                showNotification(`Прямая линия: ${distance.toFixed(1)} км`, 'info');
+            });
         }
 
         // Toggle Clusters
@@ -1157,6 +1483,11 @@
             document.getElementById('radiusValue').textContent = '5';
             
             filterByType('all');
+            
+            if (routingControl) {
+                map.removeControl(routingControl);
+                routingControl = null;
+            }
             
             if (routeLine) {
                 map.removeLayer(routeLine);
@@ -1219,6 +1550,14 @@
         }
 
         // Initialize
+        // Load saved language
+        const savedLang = localStorage.getItem('language') || 'ru';
+        currentLanguage = savedLang;
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent.toLowerCase() === savedLang);
+        });
+        updateTranslations();
+        
         initMap();
         loadRestaurants();
     </script>

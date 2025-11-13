@@ -5,7 +5,14 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ charset: 'utf-8' }));
+app.use(express.urlencoded({ extended: true, charset: 'utf-8' }));
+
+// Set default charset for all responses
+app.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    next();
+});
 
 // Logging middleware
 app.use((req, res, next) => {
@@ -19,6 +26,7 @@ const dbConfig = {
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
     database: 'restor1_db',
+    charset: 'utf8mb4',
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0
@@ -35,6 +43,11 @@ const pool = mysql.createPool(dbConfig);
 async function testDatabaseConnection() {
     try {
         const connection = await pool.getConnection();
+        
+        // Set connection charset
+        await connection.query("SET NAMES 'utf8mb4'");
+        await connection.query("SET CHARACTER SET utf8mb4");
+        
         console.log('✅ Database connection successful!');
         
         // Check if tables exist
@@ -68,8 +81,13 @@ async function testDatabaseConnection() {
 // Get all restaurants
 app.get('/api/restaurants', async (req, res) => {
     try {
-        const [rows] = await pool.query('SELECT * FROM restaurants ORDER BY rating DESC');
+        const connection = await pool.getConnection();
+        await connection.query("SET NAMES 'utf8mb4'");
+        const [rows] = await connection.query('SELECT * FROM restaurants ORDER BY rating DESC');
+        connection.release();
+        
         console.log(`✅ Retrieved ${rows.length} restaurants`);
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.json(rows);
     } catch (error) {
         console.error('❌ Error fetching restaurants:', error.message);
