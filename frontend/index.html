@@ -125,17 +125,28 @@
         /* Sidebar */
         .sidebar {
             width: 400px;
+            min-width: 400px;
+            max-width: 400px;
             background: white;
             box-shadow: 2px 0 12px rgba(0,0,0,0.1);
-            overflow-y: auto;
-            transition: transform 0.4s cubic-bezier(0.4, 0.0, 0.2, 1), flex 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
-            transform-origin: left;
+            overflow: hidden;
+            transition: margin-left 0.4s cubic-bezier(0.4, 0.0, 0.2, 1), 
+                        min-width 0.4s cubic-bezier(0.4, 0.0, 0.2, 1),
+                        max-width 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
             z-index: 1000;
+        }
+        
+        .sidebar-inner {
+            width: 400px;
+            min-width: 400px;
+            height: 100%;
+            overflow-y: auto;
         }
 
         .sidebar.collapsed {
-            transform: scaleX(0);
-            flex: 0 0 0;
+            margin-left: -400px;
+            min-width: 0;
+            max-width: 0;
         }
 
         .sidebar-header {
@@ -361,8 +372,17 @@
 
         /* Map Container */
         .map-container {
-            flex: 1;
-            position: relative;
+            position: fixed;
+            top: 70px;
+            left: 400px;
+            right: 0;
+            bottom: 0;
+            transition: left 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+            z-index: 1;
+        }
+        
+        .sidebar.collapsed ~ .toggle-sidebar-btn ~ .map-container {
+            left: 0;
         }
 
         #map {
@@ -617,6 +637,7 @@
     <div class="main-container">
         <!-- Sidebar -->
         <div class="sidebar" id="sidebar">
+            <div class="sidebar-inner">
             <div class="sidebar-header">
                 <div class="sidebar-title" data-i18n="sidebar.title">🔍 Поиск и фильтры</div>
                 <div class="search-container">
@@ -689,6 +710,7 @@
                 <div style="text-align: center; padding: 2rem; color: var(--gray);" data-i18n="loading">
                     Загрузка ресторанов...
                 </div>
+            </div>
             </div>
         </div>
 
