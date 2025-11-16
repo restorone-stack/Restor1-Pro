@@ -1,0 +1,8 @@
+# Исключаем git, workflow, node_modules, локальные настройки
+.git
+.github
+backend
+database
+node_modules
+*.log
+.env

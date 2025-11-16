@@ -1,0 +1,38 @@
+name: Deploy to InfinityFree
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  ftp-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Дополнительный диагностический шаг: проверить доступность FTP перед деплоем
+      - name: Check FTP connection (diagnostic)
+        env:
+          FTP_HOST: ${{ secrets.FTP_HOST }}
+          FTP_USER: ${{ secrets.FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lftp
+          echo "Trying to list root directory on FTP host..."
+          lftp -u "$FTP_USER","$FTP_PASS" -e "set net:max-retries 2; set net:timeout 10; ls; bye" "$FTP_HOST"
+
+      - name: FTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@4.3.3
+        with:
+          server: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Загружаем только frontend (статический сайт)
+          local-dir: ./frontend
+          # Папка на сервере
+          server-dir: /htdocs
