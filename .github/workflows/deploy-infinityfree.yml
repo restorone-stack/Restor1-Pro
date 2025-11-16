@@ -33,6 +33,6 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           # Загружаем только frontend (статический сайт)
-          local-dir: ./frontend
+          local-dir: ./frontend/
           # Папка на сервере
-          server-dir: /htdocs
+          server-dir: /htdocs/
