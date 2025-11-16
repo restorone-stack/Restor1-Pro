@@ -11,10 +11,21 @@ jobs:
   ftp-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
-      # Дополнительный диагностический шаг: проверить доступность FTP перед деплоем
+      - name: Checkout code (no submodules)
+        uses: actions/checkout@v3
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Show repo tree (diagnostic)
+        run: |
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          pwd
+          ls -la || true
+          echo "---- check frontend folder ----"
+          if [ -d "frontend" ]; then ls -la frontend || true; else echo "frontend directory NOT FOUND"; fi
+
       - name: Check FTP connection (diagnostic)
         env:
           FTP_HOST: ${{ secrets.FTP_HOST }}
@@ -26,13 +37,21 @@ jobs:
           echo "Trying to list root directory on FTP host..."
           lftp -u "$FTP_USER","$FTP_PASS" -e "set net:max-retries 2; set net:timeout 10; ls; bye" "$FTP_HOST"
 
+      - name: Ensure local-dir exists
+        run: |
+          if [ ! -d "frontend" ]; then
+            echo "ERROR: local-dir 'frontend/' does not exist. Check your build step or local-dir path in the workflow."
+            exit 1
+          fi
+          echo "OK: frontend/ exists and will be uploaded"
+
       - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@4.3.3
         with:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          # Загружаем только frontend (статический сайт)
-          local-dir: ./frontend/
-          # Папка на сервере
+          port: 21
+          protocol: ftp
+          local-dir: frontend/
           server-dir: /htdocs/
