@@ -54,4 +54,4 @@ jobs:
           port: 21
           protocol: ftp
           local-dir: frontend/
-          server-dir: /htdocs/
+          server-dir: /public_html/
