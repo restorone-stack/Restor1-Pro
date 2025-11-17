@@ -198,6 +198,80 @@
             font-size: 1.2rem;
         }
 
+        .search-btn {
+            position: absolute;
+            right: 0.5rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.1);
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 6px;
+            color: white;
+            width: 2.5rem;
+            height: 2.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-btn:hover {
+            background: rgba(0,255,102,0.2);
+            border-color: var(--green);
+            transform: translateY(-50%) scale(1.05);
+        }
+
+        .search-btn:active {
+            transform: translateY(-50%) scale(0.95);
+        }
+
+        .search-btn.clear {
+            background: rgba(255,102,102,0.2);
+            border-color: #ff6666;
+        }
+
+        .search-btn.clear:hover {
+            background: rgba(255,102,102,0.3);
+            border-color: #ff4444;
+        }
+
+        .search-type-container {
+            margin-top: 0.75rem;
+        }
+
+        .search-type-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+
+        .search-type-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .search-type-btn:hover {
+            border-color: var(--green);
+            background: rgba(0,255,102,0.1);
+        }
+
+        .search-type-btn.active {
+            background: var(--green);
+            border-color: var(--green);
+            color: var(--dark);
+        }
+
         /* Filters */
         .filters-section {
             padding: 1.5rem;
@@ -332,10 +406,66 @@
             margin-bottom: 0.5rem;
         }
 
-        .card-address {
+        .card-price {
+            background: var(--green);
+            color: var(--dark);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
+
+        .card-category {
+            color: var(--orange);
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-ingredients {
             color: var(--gray);
-            font-size: 0.85rem;
+            font-size: 0.8rem;
             line-height: 1.4;
+            margin-bottom: 0.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-restaurants {
+            margin-bottom: 0.75rem;
+        }
+
+        .restaurants-count {
+            color: var(--blue);
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .restaurants-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+
+        .restaurant-tag {
+            background: rgba(0,123,255,0.1);
+            color: var(--blue);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .dish-card {
+            border-left: 4px solid var(--green);
+        }
+
+        .dish-card:hover {
+            border-color: var(--green);
+            box-shadow: 0 4px 12px rgba(0,255,102,0.3);
         }
 
         .card-actions {
@@ -647,7 +777,17 @@
                            id="searchInput"
                            data-i18n-placeholder="search.placeholder"
                            placeholder="Название, адрес, тип кухни..."
-                           oninput="handleSearch()">
+                           oninput="handleSearch(); updateSearchButton()">
+                    <button class="search-btn" id="searchBtn" onclick="toggleSearch()" title="Поиск">
+                        🔍
+                    </button>
+                </div>
+                <div class="search-type-container">
+                    <div class="search-type-buttons">
+                        <button class="search-type-btn active" data-search-type="all" data-i18n="search.all" onclick="setSearchType('all')">Все</button>
+                        <button class="search-type-btn" data-search-type="restaurants" data-i18n="search.restaurants" onclick="setSearchType('restaurants')">Рестораны</button>
+                        <button class="search-type-btn" data-search-type="dishes" data-i18n="search.dishes" onclick="setSearchType('dishes')">Блюда</button>
+                    </div>
                 </div>
             </div>
 
@@ -781,6 +921,9 @@
                 'stats.nearest': 'Ближайший',
                 'sidebar.title': '🔍 Поиск и фильтры',
                 'search.placeholder': 'Название, адрес, тип кухни...',
+                'search.all': 'Все',
+                'search.restaurants': 'Рестораны',
+                'search.dishes': 'Блюда',
                 'filters.type': '🏪 Тип заведения',
                 'filters.all': 'Все',
                 'filters.restaurant': 'Ресторан',
@@ -800,7 +943,7 @@
                 'buttons.reset': 'Сбросить',
                 'buttons.map': 'На карте',
                 'buttons.route': 'Маршрут',
-                'buttons.details': 'Подробнее',
+                'buttons.showRestaurants': 'Показать рестораны',
                 'notifications.loaded': 'Загружено',
                 'notifications.restaurants': 'заведений',
                 'notifications.error': 'Ошибка загрузки. Запустите Backend сервер!',
@@ -815,7 +958,8 @@
                 'notifications.clusters': 'Кластеры включены',
                 'notifications.clustersOff': 'Кластеры выключены',
                 'notifications.reset': 'Карта сброшена',
-                'notFound': 'Ничего не найдено'
+                'dish.availableIn': 'Доступно в',
+                'dish.restaurants': 'ресторанах',
             },
             en: {
                 'stats.total': 'Places',
@@ -823,6 +967,9 @@
                 'stats.nearest': 'Nearest',
                 'sidebar.title': '🔍 Search & Filters',
                 'search.placeholder': 'Name, address, cuisine type...',
+                'search.all': 'All',
+                'search.restaurants': 'Restaurants',
+                'search.dishes': 'Dishes',
                 'filters.type': '🏪 Place Type',
                 'filters.all': 'All',
                 'filters.restaurant': 'Restaurant',
@@ -842,7 +989,7 @@
                 'buttons.reset': 'Reset',
                 'buttons.map': 'On Map',
                 'buttons.route': 'Route',
-                'buttons.details': 'Details',
+                'buttons.showRestaurants': 'Show Restaurants',
                 'notifications.loaded': 'Loaded',
                 'notifications.restaurants': 'places',
                 'notifications.error': 'Loading error. Start Backend server!',
@@ -857,7 +1004,8 @@
                 'notifications.clusters': 'Clusters enabled',
                 'notifications.clustersOff': 'Clusters disabled',
                 'notifications.reset': 'Map reset',
-                'notFound': 'Nothing found'
+                'dish.availableIn': 'Available in',
+                'dish.restaurants': 'restaurants',
             },
             kz: {
                 'stats.total': 'Мекемелер',
@@ -865,6 +1013,9 @@
                 'stats.nearest': 'Жақын',
                 'sidebar.title': '🔍 Іздеу және сүзгілер',
                 'search.placeholder': 'Атауы, мекенжайы, ас түрі...',
+                'search.all': 'Барлығы',
+                'search.restaurants': 'Мейрамханалар',
+                'search.dishes': 'Тағамдар',
                 'filters.type': '🏪 Мекеме түрі',
                 'filters.all': 'Барлығы',
                 'filters.restaurant': 'Мейрамхана',
@@ -884,7 +1035,7 @@
                 'buttons.reset': 'Тастау',
                 'buttons.map': 'Картада',
                 'buttons.route': 'Бағыт',
-                'buttons.details': 'Толығырақ',
+                'buttons.showRestaurants': 'Мейрамханаларды көрсету',
                 'notifications.loaded': 'Жүктелді',
                 'notifications.restaurants': 'мекеме',
                 'notifications.error': 'Жүктеу қатесі. Backend серверін іске қосыңыз!',
@@ -899,7 +1050,8 @@
                 'notifications.clusters': 'Кластерлер қосылды',
                 'notifications.clustersOff': 'Кластерлер өшірілді',
                 'notifications.reset': 'Карта тасталды',
-                'notFound': 'Ештеңе табылмады'
+                'dish.availableIn': 'Қолжетімді',
+                'dish.restaurants': 'мейрамханада',
             }
         };
 
@@ -963,6 +1115,7 @@
         let map;
         let allRestaurants = [];
         let filteredRestaurants = [];
+        let foundDishes = []; // Новое: найденные блюда для отображения
         let markers = [];
         let markerClusterGroup;
         let userMarker = null;
@@ -975,6 +1128,7 @@
         // Filters State
         let filters = {
             search: '',
+            searchType: 'all', // 'all', 'restaurants', 'dishes'
             type: 'all',
             minRating: 0,
             maxRadius: 5,
@@ -1105,6 +1259,13 @@
         function displayResults() {
             const container = document.getElementById('resultsSection');
             
+            // Если ищем по блюдам и есть найденные блюда - показываем блюда
+            if (filters.searchType === 'dishes' && foundDishes.length > 0) {
+                displayDishes(foundDishes);
+                return;
+            }
+            
+            // Иначе показываем рестораны
             if (filteredRestaurants.length === 0) {
                 container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--gray);">${t('notFound')}</div>`;
                 return;
@@ -1132,6 +1293,46 @@
                             <button class="action-btn secondary" onclick="event.stopPropagation(); showRoute(${restaurant.id})">
                                 ${t('buttons.route')}
                             </button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Display Dishes in Sidebar
+        function displayDishes(dishes) {
+            const container = document.getElementById('resultsSection');
+            
+            if (dishes.length === 0) {
+                container.innerHTML = `<div style="text-align: center; padding: 2rem; color: var(--gray);">${t('notFound')}</div>`;
+                return;
+            }
+
+            container.innerHTML = dishes.map(dish => {
+                // Найдем рестораны, где есть это блюдо
+                const restaurantIds = dish.restaurants || [];
+                const restaurants = allRestaurants.filter(r => restaurantIds.includes(r.id));
+                
+                return `
+                    <div class="result-card dish-card" onclick="focusDishRestaurants(${dish.id})">
+                        <div class="card-header">
+                            <div class="card-name">${dish.name}</div>
+                            <div class="card-price">💰 ${dish.price} ₸</div>
+                        </div>
+                        <div class="card-category">🍽️ ${dish.category}</div>
+                        ${dish.ingredients && dish.ingredients.length > 0 ? 
+                            `<div class="card-ingredients">${dish.ingredients.join(', ')}</div>` : ''}
+                        <div class="card-restaurants">
+                            <div class="restaurants-count">🏪 ${t('dish.availableIn')} ${restaurants.length} ${t('dish.restaurants')}</div>
+                            <div class="restaurants-list">
+                                ${restaurants.slice(0, 3).map(r => `<span class="restaurant-tag">${r.name}</span>`).join('')}
+                                ${restaurants.length > 3 ? `<span class="restaurant-tag">+${restaurants.length - 3}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="action-btn primary" onclick="event.stopPropagation(); focusDishRestaurants(${dish.id})">
+                                ${t('buttons.showRestaurants')}
+                            </button>
                         </div>
                     </div>
                 `;
@@ -1186,6 +1387,66 @@
             updateStats();
         }
 
+        // Set Search Type
+        function setSearchType(type) {
+            filters.searchType = type;
+            
+            // Update UI
+            document.querySelectorAll('[data-search-type]').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.searchType === type);
+            });
+            
+            // Сбрасываем результаты при смене типа поиска
+            foundDishes = [];
+            
+            // Re-run search if there's a query
+            const query = document.getElementById('searchInput').value.trim();
+            if (query) {
+                handleSearch();
+            } else {
+                // Если нет запроса, показываем все рестораны
+                filteredRestaurants = [...allRestaurants];
+                displayResults();
+                displayMarkers();
+            }
+        }
+
+        // Toggle Search Button
+        function toggleSearch() {
+            const input = document.getElementById('searchInput');
+            const btn = document.getElementById('searchBtn');
+            
+            if (input.value.trim()) {
+                // Clear search
+                input.value = '';
+                filters.search = '';
+                filteredRestaurants = [...allRestaurants];
+                foundDishes = []; // Сбрасываем найденные блюда
+                applyFilters();
+                updateSearchButton();
+                showNotification('Поиск очищен', 'info');
+            } else {
+                // Focus input for search
+                input.focus();
+            }
+        }
+
+        // Update Search Button State
+        function updateSearchButton() {
+            const input = document.getElementById('searchInput');
+            const btn = document.getElementById('searchBtn');
+            
+            if (input.value.trim()) {
+                btn.textContent = '❌';
+                btn.classList.add('clear');
+                btn.title = 'Очистить поиск';
+            } else {
+                btn.textContent = '🔍';
+                btn.classList.remove('clear');
+                btn.title = 'Поиск';
+            }
+        }
+
         // Handle Search
         async function handleSearch() {
             const query = document.getElementById('searchInput').value.trim();
@@ -1194,6 +1455,7 @@
             if (!query) {
                 // If no search query, show all restaurants
                 filteredRestaurants = [...allRestaurants];
+                foundDishes = []; // Сбрасываем найденные блюда
                 applyFilters();
                 return;
             }
@@ -1201,38 +1463,68 @@
             showLoading(true);
             
             try {
-                // Search in restaurants and dishes
-                const response = await fetch(`${API_URL}/api/search?query=${encodeURIComponent(query)}&type=all`);
+                // Search based on selected type
+                const response = await fetch(`${API_URL}/api/search?query=${encodeURIComponent(query)}&type=${filters.searchType}`);
                 if (!response.ok) throw new Error('Search failed');
                 
                 const searchResults = await response.json();
                 
-                // Get restaurants from search results
-                const foundRestaurants = searchResults.restaurants || [];
-                const foundDishes = searchResults.dishes || [];
-                
-                // Update filtered restaurants based on search
-                if (foundRestaurants.length > 0) {
-                    // If restaurants found, show them
+                // Handle different search types
+                if (filters.searchType === 'restaurants') {
+                    // Search only restaurants
+                    const foundRestaurants = searchResults.restaurants || [];
                     filteredRestaurants = allRestaurants.filter(r => 
                         foundRestaurants.some(fr => fr.id === r.id)
                     );
-                } else if (foundDishes.length > 0) {
-                    // If only dishes found, show restaurants that have these dishes
-                    const restaurantIds = new Set();
-                    foundDishes.forEach(dish => {
-                        if (dish.restaurants) {
-                            dish.restaurants.forEach(rid => restaurantIds.add(rid));
-                        }
-                    });
-                    filteredRestaurants = allRestaurants.filter(r => restaurantIds.has(r.id));
+                    foundDishes = []; // Очищаем найденные блюда
                     
-                    // Show notification about found dishes
-                    showNotification(`Найдено ${foundDishes.length} блюд в ${restaurantIds.size} ресторанах`, 'info');
+                    if (foundRestaurants.length === 0) {
+                        showNotification('Рестораны не найдены', 'warning');
+                    }
+                    
+                } else if (filters.searchType === 'dishes') {
+                    // Search only dishes - показываем блюда с ценами
+                    foundDishes = searchResults.dishes || [];
+                    filteredRestaurants = []; // Не фильтруем рестораны
+                    
+                    if (foundDishes.length === 0) {
+                        showNotification('Блюда не найдены', 'warning');
+                    } else {
+                        // Показываем рестораны на карте, где есть найденные блюда
+                        const restaurantIds = new Set();
+                        foundDishes.forEach(dish => {
+                            if (dish.restaurants) {
+                                dish.restaurants.forEach(rid => restaurantIds.add(rid));
+                            }
+                        });
+                        filteredRestaurants = allRestaurants.filter(r => restaurantIds.has(r.id));
+                    }
+                    
                 } else {
-                    // Nothing found
-                    filteredRestaurants = [];
-                    showNotification('Ничего не найдено', 'warning');
+                    // Search all (restaurants and dishes)
+                    const foundRestaurants = searchResults.restaurants || [];
+                    const foundDishesAll = searchResults.dishes || [];
+                    
+                    if (foundRestaurants.length > 0) {
+                        filteredRestaurants = allRestaurants.filter(r => 
+                            foundRestaurants.some(fr => fr.id === r.id)
+                        );
+                        foundDishes = []; // Очищаем найденные блюда
+                    } else if (foundDishesAll.length > 0) {
+                        const restaurantIds = new Set();
+                        foundDishesAll.forEach(dish => {
+                            if (dish.restaurants) {
+                                dish.restaurants.forEach(rid => restaurantIds.add(rid));
+                            }
+                        });
+                        filteredRestaurants = allRestaurants.filter(r => restaurantIds.has(r.id));
+                        foundDishes = []; // Не показываем блюда в общем поиске
+                        showNotification(`Найдено ${foundDishesAll.length} блюд в ${restaurantIds.size} ресторанах`, 'info');
+                    } else {
+                        filteredRestaurants = [];
+                        foundDishes = [];
+                        showNotification('Ничего не найдено', 'warning');
+                    }
                 }
                 
                 applyFilters();
@@ -1456,15 +1748,25 @@
             }
         }
 
-        // Highlight Restaurant Card
-        function highlightRestaurantCard(id) {
-            document.querySelectorAll('.result-card').forEach(card => {
-                card.classList.remove('active');
-            });
+        // Focus on Dish Restaurants
+        function focusDishRestaurants(dishId) {
+            const dish = foundDishes.find(d => d.id === dishId);
+            if (!dish || !dish.restaurants) return;
             
-            const card = document.getElementById(`card-${id}`);
-            if (card) {
-                card.classList.add('active');
+            // Показываем рестораны, где есть это блюдо
+            const restaurantIds = dish.restaurants;
+            const restaurants = allRestaurants.filter(r => restaurantIds.includes(r.id));
+            
+            if (restaurants.length > 0) {
+                // Центрируем карту на первом ресторане
+                const firstRestaurant = restaurants[0];
+                map.setView([firstRestaurant.latitude, firstRestaurant.longitude], 14);
+                
+                // Показываем все рестораны на карте
+                filteredRestaurants = restaurants;
+                displayMarkers();
+                
+                showNotification(`Блюдо "${dish.name}" доступно в ${restaurants.length} ресторанах`, 'info');
             }
         }
 
@@ -1594,8 +1896,11 @@
             document.getElementById('radiusSlider').value = 20;
             document.getElementById('radiusValue').textContent = '20';
             
-            // Сбрасываем фильтр типа
-            filterByType('all');
+            // Сбрасываем тип поиска
+            setSearchType('all');
+            
+            // Обновляем кнопку поиска
+            updateSearchButton();
             
             // Удаляем маршрут
             if (routingControl) {
@@ -1620,6 +1925,7 @@
             
             // Сбрасываем отфильтрованные рестораны на все
             filteredRestaurants = [...allRestaurants];
+            foundDishes = []; // Сбрасываем найденные блюда
             
             // Применяем сброшенные фильтры
             applyFilters();
@@ -1690,6 +1996,9 @@
         
         initMap();
         loadRestaurants();
+        
+        // Initialize search button
+        updateSearchButton();
     </script>
 </body>
 </html>
