@@ -943,6 +943,7 @@
                 'buttons.reset': 'Сбросить',
                 'buttons.map': 'На карте',
                 'buttons.route': 'Маршрут',
+                'buttons.details': 'Подробнее',
                 'buttons.showRestaurants': 'Показать рестораны',
                 'notifications.loaded': 'Загружено',
                 'notifications.restaurants': 'заведений',
@@ -989,6 +990,7 @@
                 'buttons.reset': 'Reset',
                 'buttons.map': 'On Map',
                 'buttons.route': 'Route',
+                'buttons.details': 'Details',
                 'buttons.showRestaurants': 'Show Restaurants',
                 'notifications.loaded': 'Loaded',
                 'notifications.restaurants': 'places',
@@ -1035,6 +1037,7 @@
                 'buttons.reset': 'Тастау',
                 'buttons.map': 'Картада',
                 'buttons.route': 'Бағыт',
+                'buttons.details': 'Толығырақ',
                 'buttons.showRestaurants': 'Мейрамханаларды көрсету',
                 'notifications.loaded': 'Жүктелді',
                 'notifications.restaurants': 'мекеме',
@@ -1308,7 +1311,30 @@
                 return;
             }
 
-            container.innerHTML = dishes.map(dish => {
+            // Фильтруем блюда на основе фильтров
+            let filteredDishes = dishes.filter(dish => {
+                // Фильтр по типу ресторана
+                if (filters.type && filters.type !== 'all') {
+                    const restaurantsWithDish = allRestaurants.filter(r => dish.restaurants && dish.restaurants.includes(r.id));
+                    if (!restaurantsWithDish.some(r => r.type === filters.type)) return false;
+                }
+
+                // Фильтр по рейтингу
+                if (filters.minRating > 0) {
+                    const restaurantsWithDish = allRestaurants.filter(r => dish.restaurants && dish.restaurants.includes(r.id));
+                    if (!restaurantsWithDish.some(r => r.rating >= filters.minRating)) return false;
+                }
+
+                // Фильтр по радиусу
+                if (filters.maxRadius > 0 && userLocation) {
+                    const restaurantsWithDish = allRestaurants.filter(r => dish.restaurants && dish.restaurants.includes(r.id));
+                    if (!restaurantsWithDish.some(r => calculateDistance(userLocation.lat, userLocation.lng, r.latitude, r.longitude) <= filters.maxRadius)) return false;
+                }
+
+                return true;
+            });
+
+            container.innerHTML = filteredDishes.map(dish => {
                 // Найдем рестораны, где есть это блюдо
                 const restaurantIds = dish.restaurants || [];
                 const restaurants = allRestaurants.filter(r => restaurantIds.includes(r.id));
@@ -1383,7 +1409,11 @@
             filteredRestaurants = results;
             
             displayMarkers();
-            displayResults();
+            if (filters.searchType === 'restaurant' || filters.searchType === 'all') {
+                displayResults();
+            } else {
+                displayDishes(foundDishes);
+            }
             updateStats();
         }
 

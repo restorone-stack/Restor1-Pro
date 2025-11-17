@@ -240,13 +240,17 @@ app.get('/api/search', async (req, res) => {
 
         console.log(`🔍 Unified search: "${query}" (type: ${type})`);
         const results = {};
-        const searchLower = query.toLowerCase();
+        
+        // Split query into multiple search terms
+        const queries = query.split(',').map(q => q.trim().toLowerCase()).filter(q => q.length > 0);
 
         if (type === 'all' || type === 'restaurants') {
             const foundRestaurants = restaurantsData.filter(r => 
-                r.name.toLowerCase().includes(searchLower) ||
-                (r.address && r.address.toLowerCase().includes(searchLower)) ||
-                (r.type && r.type.toLowerCase().includes(searchLower))
+                queries.some(q =>
+                    r.name.toLowerCase().includes(q) ||
+                    (r.address && r.address.toLowerCase().includes(q)) ||
+                    (r.type && r.type.toLowerCase().includes(q))
+                )
             ).slice(0, 20);
             results.restaurants = foundRestaurants;
             console.log(`   Found ${foundRestaurants.length} restaurants`);
@@ -255,11 +259,13 @@ app.get('/api/search', async (req, res) => {
         if (type === 'all' || type === 'dishes') {
             const foundDishes = dishesData.filter(d => 
                 d && typeof d === 'object' && d.name &&
-                (d.name.toLowerCase().includes(searchLower) ||
-                (d.category && d.category.toLowerCase().includes(searchLower)) ||
-                (d.ingredients && d.ingredients.some(ing => 
-                    typeof ing === 'string' && ing.toLowerCase().includes(searchLower)
-                )))
+                queries.some(q =>
+                    d.name.toLowerCase().includes(q) ||
+                    (d.category && d.category.toLowerCase().includes(q)) ||
+                    (d.ingredients && d.ingredients.some(ing => 
+                        typeof ing === 'string' && ing.toLowerCase().includes(q)
+                    ))
+                )
             ).slice(0, 20);
             results.dishes = foundDishes;
             console.log(`   Found ${foundDishes.length} dishes`);
