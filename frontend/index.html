@@ -1140,37 +1140,35 @@
 
         // Apply Filters
         function applyFilters() {
-            filteredRestaurants = allRestaurants.filter(restaurant => {
-                // Search filter
-                if (filters.search) {
-                    const searchLower = filters.search.toLowerCase();
-                    const matchSearch = 
-                        restaurant.name.toLowerCase().includes(searchLower) ||
-                        restaurant.address.toLowerCase().includes(searchLower) ||
-                        restaurant.type.toLowerCase().includes(searchLower);
-                    if (!matchSearch) return false;
-                }
-
+            // Start with ALL restaurants if no search query
+            let results = filters.search ? [...filteredRestaurants] : [...allRestaurants];
+            
+            // Apply additional filters
+            results = results.filter(restaurant => {
                 // Type filter
                 if (filters.type !== 'all' && restaurant.type !== filters.type) {
                     return false;
                 }
 
-                // Rating filter
-                if (restaurant.rating < filters.minRating) {
+                // Rating filter - ВАЖНО: используем актуальное значение
+                const currentMinRating = parseFloat(document.getElementById('ratingSlider').value);
+                if (restaurant.rating < currentMinRating) {
                     return false;
                 }
 
-                // Distance filter
-                if (userLocation && filters.maxRadius) {
-                    const distance = calculateDistance(
-                        userLocation.lat, 
-                        userLocation.lng, 
-                        restaurant.latitude, 
-                        restaurant.longitude
-                    );
-                    if (distance > filters.maxRadius) {
-                        return false;
+                // Distance filter - ВАЖНО: используем актуальное значение
+                if (userLocation) {
+                    const currentMaxRadius = parseInt(document.getElementById('radiusSlider').value);
+                    if (currentMaxRadius > 0) {
+                        const distance = calculateDistance(
+                            userLocation.lat, 
+                            userLocation.lng, 
+                            restaurant.latitude, 
+                            restaurant.longitude
+                        );
+                        if (distance > currentMaxRadius) {
+                            return false;
+                        }
                     }
                 }
 
@@ -1178,7 +1176,10 @@
             });
 
             // Sort
-            sortResults(filters.sortBy);
+            sortResults(filters.sortBy, results);
+            
+            // Update filteredRestaurants for display
+            filteredRestaurants = results;
             
             displayMarkers();
             displayResults();
@@ -1186,9 +1187,70 @@
         }
 
         // Handle Search
-        function handleSearch() {
-            filters.search = document.getElementById('searchInput').value;
-            applyFilters();
+        async function handleSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            filters.search = query;
+            
+            if (!query) {
+                // If no search query, show all restaurants
+                filteredRestaurants = [...allRestaurants];
+                applyFilters();
+                return;
+            }
+
+            showLoading(true);
+            
+            try {
+                // Search in restaurants and dishes
+                const response = await fetch(`${API_URL}/api/search?query=${encodeURIComponent(query)}&type=all`);
+                if (!response.ok) throw new Error('Search failed');
+                
+                const searchResults = await response.json();
+                
+                // Get restaurants from search results
+                const foundRestaurants = searchResults.restaurants || [];
+                const foundDishes = searchResults.dishes || [];
+                
+                // Update filtered restaurants based on search
+                if (foundRestaurants.length > 0) {
+                    // If restaurants found, show them
+                    filteredRestaurants = allRestaurants.filter(r => 
+                        foundRestaurants.some(fr => fr.id === r.id)
+                    );
+                } else if (foundDishes.length > 0) {
+                    // If only dishes found, show restaurants that have these dishes
+                    const restaurantIds = new Set();
+                    foundDishes.forEach(dish => {
+                        if (dish.restaurants) {
+                            dish.restaurants.forEach(rid => restaurantIds.add(rid));
+                        }
+                    });
+                    filteredRestaurants = allRestaurants.filter(r => restaurantIds.has(r.id));
+                    
+                    // Show notification about found dishes
+                    showNotification(`Найдено ${foundDishes.length} блюд в ${restaurantIds.size} ресторанах`, 'info');
+                } else {
+                    // Nothing found
+                    filteredRestaurants = [];
+                    showNotification('Ничего не найдено', 'warning');
+                }
+                
+                applyFilters();
+                
+            } catch (error) {
+                console.error('Search error:', error);
+                showNotification('Ошибка поиска', 'error');
+                // Fallback to local search
+                filteredRestaurants = allRestaurants.filter(restaurant => {
+                    const searchLower = query.toLowerCase();
+                    return restaurant.name.toLowerCase().includes(searchLower) ||
+                           restaurant.address.toLowerCase().includes(searchLower) ||
+                           restaurant.type.toLowerCase().includes(searchLower);
+                });
+                applyFilters();
+            } finally {
+                showLoading(false);
+            }
         }
 
         // Filter by Type
@@ -1205,25 +1267,27 @@
 
         // Filter by Rating
         function filterByRating(value) {
-            filters.minRating = parseFloat(value);
-            document.getElementById('ratingValue').textContent = value;
+            const ratingValue = parseFloat(value);
+            filters.minRating = ratingValue;
+            document.getElementById('ratingValue').textContent = ratingValue.toFixed(1);
+            // Немедленно применяем фильтр
             applyFilters();
         }
 
         // Filter by Radius
         function filterByRadius(value) {
-            filters.maxRadius = parseInt(value);
-            document.getElementById('radiusValue').textContent = value;
+            const radiusValue = parseInt(value);
+            filters.maxRadius = radiusValue;
+            document.getElementById('radiusValue').textContent = radiusValue;
             
+            // Применяем фильтр только если местоположение включено
             if (userLocation) {
                 applyFilters();
-            } else {
-                showNotification('Сначала определите своё местоположение', 'info');
             }
         }
 
         // Sort Results
-        function sortResults(sortBy) {
+        function sortResults(sortBy, resultsArray = filteredRestaurants) {
             filters.sortBy = sortBy;
             
             // Update UI - highlight active sort button
@@ -1231,7 +1295,7 @@
                 btn.classList.toggle('active', btn.dataset.sort === sortBy);
             });
             
-            filteredRestaurants.sort((a, b) => {
+            resultsArray.sort((a, b) => {
                 switch (sortBy) {
                     case 'rating':
                         return b.rating - a.rating;
@@ -1247,11 +1311,34 @@
                 }
             });
             
-            displayResults();
+            if (resultsArray === filteredRestaurants) {
+                displayResults();
+            }
         }
 
-        // Get User Location
+        // Get User Location (с функцией toggle)
         function getUserLocation() {
+            // Если местоположение уже определено - выключаем его
+            if (userLocation) {
+                userLocation = null;
+                
+                // Удаляем маркер пользователя
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                    userMarker = null;
+                }
+                
+                // Убираем активное состояние кнопки
+                document.getElementById('locationBtn').classList.remove('active');
+                
+                showNotification('Местоположение отключено', 'info');
+                
+                // Пересчитываем без учета расстояния
+                applyFilters();
+                return;
+            }
+            
+            // Включаем определение местоположения
             if (!navigator.geolocation) {
                 showNotification('Геолокация не поддерживается', 'error');
                 return;
@@ -1486,26 +1573,31 @@
             showNotification(useClusters ? 'Кластеры включены' : 'Кластеры выключены', 'info');
         }
 
-        // Reset Map
+        // Reset Map (полный сброс)
         function resetMap() {
+            // Сбрасываем позицию карты
             map.setView(ALMATY_CENTER, 12);
+            
+            // Полностью сбрасываем фильтры
             filters = {
                 search: '',
                 type: 'all',
                 minRating: 0,
-                maxRadius: 5,
+                maxRadius: 20,
                 sortBy: 'rating'
             };
             
-            // Reset UI
+            // Сбрасываем UI элементы
             document.getElementById('searchInput').value = '';
             document.getElementById('ratingSlider').value = 0;
             document.getElementById('ratingValue').textContent = '0';
-            document.getElementById('radiusSlider').value = 5;
-            document.getElementById('radiusValue').textContent = '5';
+            document.getElementById('radiusSlider').value = 20;
+            document.getElementById('radiusValue').textContent = '20';
             
+            // Сбрасываем фильтр типа
             filterByType('all');
             
+            // Удаляем маршрут
             if (routingControl) {
                 map.removeControl(routingControl);
                 routingControl = null;
@@ -1516,7 +1608,23 @@
                 routeLine = null;
             }
             
-            showNotification('Карта сброшена', 'info');
+            // Отключаем местоположение пользователя
+            if (userLocation) {
+                userLocation = null;
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                    userMarker = null;
+                }
+                document.getElementById('locationBtn').classList.remove('active');
+            }
+            
+            // Сбрасываем отфильтрованные рестораны на все
+            filteredRestaurants = [...allRestaurants];
+            
+            // Применяем сброшенные фильтры
+            applyFilters();
+            
+            showNotification('Все фильтры сброшены', 'success');
         }
 
         // Toggle Sidebar
