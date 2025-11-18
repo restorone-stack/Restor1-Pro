@@ -1136,6 +1136,7 @@
         // State
         let map;
         let allRestaurants = [];
+        let allDishes = []; // Добавить массив для всех блюд
         let filteredRestaurants = [];
         let foundDishes = []; // Новое: найденные блюда для отображения
         let markers = [];
@@ -1182,17 +1183,23 @@
             showLoading(true);
             
             try {
-                const response = await fetch(`${API_URL}/api/restaurants`);
-                if (!response.ok) throw new Error('Server error');
+                // Загружаем рестораны
+                const restaurantsResponse = await fetch('./database/БД(Заведений) (2).json');
+                if (!restaurantsResponse.ok) throw new Error('Failed to load restaurants data');
+                allRestaurants = await restaurantsResponse.json();
                 
-                allRestaurants = await response.json();
+                // Загружаем блюда
+                const dishesResponse = await fetch('./database/dishes_export.json');
+                if (!dishesResponse.ok) throw new Error('Failed to load dishes data');
+                allDishes = await dishesResponse.json();
+                
                 filteredRestaurants = [...allRestaurants];
                 
                 updateStats();
                 applyFilters();
                 showNotification(`${t('notifications.loaded')} ${allRestaurants.length} ${t('notifications.restaurants')}`, 'success');
             } catch (error) {
-                console.error('Error loading restaurants:', error);
+                console.error('Error loading data:', error);
                 showNotification(t('notifications.error'), 'error');
             } finally {
                 showLoading(false);
@@ -1600,28 +1607,29 @@
             showLoading(true);
             
             try {
-                // Search based on selected type
-                const response = await fetch(`${API_URL}/api/search?query=${encodeURIComponent(query)}&type=${filters.searchType}`);
-                if (!response.ok) throw new Error('Search failed');
-                
-                const searchResults = await response.json();
+                const searchLower = query.toLowerCase();
                 
                 // Handle different search types
                 if (filters.searchType === 'restaurants') {
                     // Search only restaurants
-                    const foundRestaurants = searchResults.restaurants || [];
-                    filteredRestaurants = allRestaurants.filter(r => 
-                        foundRestaurants.some(fr => fr.id === r.id)
-                    );
+                    filteredRestaurants = allRestaurants.filter(restaurant => {
+                        return restaurant.name.toLowerCase().includes(searchLower) ||
+                               restaurant.address.toLowerCase().includes(searchLower) ||
+                               restaurant.type.toLowerCase().includes(searchLower);
+                    });
                     foundDishes = []; // Очищаем найденные блюда
                     
-                    if (foundRestaurants.length === 0) {
+                    if (filteredRestaurants.length === 0) {
                         showNotification('Рестораны не найдены', 'warning');
                     }
                     
                 } else if (filters.searchType === 'dishes') {
-                    // Search only dishes - показываем блюда с ценами
-                    foundDishes = searchResults.dishes || [];
+                    // Search only dishes
+                    foundDishes = allDishes.filter(dish => {
+                        return dish.name.toLowerCase().includes(searchLower) ||
+                               (dish.category && dish.category.toLowerCase().includes(searchLower)) ||
+                               (dish.ingredients && dish.ingredients.some(ing => ing.toLowerCase().includes(searchLower)));
+                    });
                     filteredRestaurants = []; // Не фильтруем рестораны
                     
                     if (foundDishes.length === 0) {
@@ -1639,12 +1647,20 @@
                     
                 } else {
                     // Search all (restaurants and dishes)
-                    const foundRestaurants = searchResults.restaurants || [];
-                    const foundDishesAll = searchResults.dishes || [];
+                    const foundRestaurants = allRestaurants.filter(restaurant => {
+                        return restaurant.name.toLowerCase().includes(searchLower) ||
+                               restaurant.address.toLowerCase().includes(searchLower) ||
+                               restaurant.type.toLowerCase().includes(searchLower);
+                    });
+                    
+                    const foundDishesAll = allDishes.filter(dish => {
+                        return dish.name.toLowerCase().includes(searchLower) ||
+                               (dish.category && dish.category.toLowerCase().includes(searchLower)) ||
+                               (dish.ingredients && dish.ingredients.some(ing => ing.toLowerCase().includes(searchLower)));
+                    });
                     
                     foundDishes = foundDishesAll;
-                    filteredRestaurants = foundRestaurants.length > 0 ? 
-                        allRestaurants.filter(r => foundRestaurants.some(fr => fr.id === r.id)) : 
+                    filteredRestaurants = foundRestaurants.length > 0 ? foundRestaurants : 
                         allRestaurants.filter(r => {
                             const restaurantIds = new Set();
                             foundDishesAll.forEach(dish => {
