@@ -961,6 +961,7 @@
                 'notifications.reset': 'Карта сброшена',
                 'dish.availableIn': 'Доступно в',
                 'dish.restaurants': 'ресторанах',
+                'notFound': 'Ничего не найдено'
             },
             en: {
                 'stats.total': 'Places',
@@ -1008,6 +1009,7 @@
                 'notifications.reset': 'Map reset',
                 'dish.availableIn': 'Available in',
                 'dish.restaurants': 'restaurants',
+                'notFound': 'Nothing found'
             },
             kz: {
                 'stats.total': 'Мекемелер',
@@ -1055,6 +1057,7 @@
                 'notifications.reset': 'Карта тасталды',
                 'dish.availableIn': 'Қолжетімді',
                 'dish.restaurants': 'мейрамханада',
+                'notFound': 'Ештеңе табылмады'
             }
         };
 
@@ -1068,8 +1071,10 @@
             // Update UI buttons
             document.querySelectorAll('.lang-btn').forEach(btn => {
                 btn.classList.remove('active');
+                if (btn.textContent.toLowerCase() === lang) {
+                    btn.classList.add('active');
+                }
             });
-            event.target.classList.add('active');
             
             // Update all translations
             updateTranslations();
@@ -1112,6 +1117,20 @@
         // Get translation
         function t(key) {
             return translations[currentLanguage][key] || key;
+        }
+
+        // Highlight Restaurant Card
+        function highlightRestaurantCard(id) {
+            // Remove active class from all cards
+            document.querySelectorAll('.result-card').forEach(card => {
+                card.classList.remove('active');
+            });
+            
+            // Add active class to the selected card
+            const card = document.getElementById(`card-${id}`);
+            if (card) {
+                card.classList.add('active');
+            }
         }
         
         // State
@@ -1262,9 +1281,95 @@
         function displayResults() {
             const container = document.getElementById('resultsSection');
             
-            // Если ищем по блюдам и есть найденные блюда - показываем блюда
+            // Если ищем по блюдам - показываем только блюда
             if (filters.searchType === 'dishes' && foundDishes.length > 0) {
                 displayDishes(foundDishes);
+                return;
+            }
+            
+            // Если ищем все и есть блюда - показываем блюда и рестораны
+            if (filters.searchType === 'all' && foundDishes.length > 0) {
+                // Фильтруем блюда на основе фильтров
+                let filteredDishes = foundDishes.filter(dish => {
+                    // Фильтр по типу ресторана
+                    if (filters.type && filters.type !== 'all') {
+                        const restaurantsWithDish = allRestaurants.filter(r => dish.restaurants && dish.restaurants.includes(r.id));
+                        if (!restaurantsWithDish.some(r => r.type === filters.type)) return false;
+                    }
+
+                    // Фильтр по рейтингу
+                    if (filters.minRating > 0) {
+                        const restaurantsWithDish = allRestaurants.filter(r => dish.restaurants && dish.restaurants.includes(r.id));
+                        if (!restaurantsWithDish.some(r => r.rating >= filters.minRating)) return false;
+                    }
+
+                    // Фильтр по радиусу
+                    if (filters.maxRadius > 0 && userLocation) {
+                        const restaurantsWithDish = allRestaurants.filter(r => dish.restaurants && dish.restaurants.includes(r.id));
+                        if (!restaurantsWithDish.some(r => calculateDistance(userLocation.lat, userLocation.lng, r.latitude, r.longitude) <= filters.maxRadius)) return false;
+                    }
+
+                    return true;
+                });
+
+                const dishesHtml = filteredDishes.map(dish => {
+                    // Найдем рестораны, где есть это блюдо
+                    const restaurantIds = dish.restaurants || [];
+                    const restaurants = allRestaurants.filter(r => restaurantIds.includes(r.id));
+                    
+                    return `
+                        <div class="result-card dish-card" onclick="focusDishRestaurants(${dish.id})">
+                            <div class="card-header">
+                                <div class="card-name">${dish.name}</div>
+                                <div class="card-price">💰 ${dish.price} ₸</div>
+                            </div>
+                            <div class="card-category">🍽️ ${dish.category}</div>
+                            ${dish.ingredients && dish.ingredients.length > 0 ? 
+                                `<div class="card-ingredients">${dish.ingredients.join(', ')}</div>` : ''}
+                            <div class="card-restaurants">
+                                <div class="restaurants-count">🏪 ${t('dish.availableIn')} ${restaurants.length} ${t('dish.restaurants')}</div>
+                                <div class="restaurants-list">
+                                    ${restaurants.slice(0, 3).map(r => `<span class="restaurant-tag">${r.name}</span>`).join('')}
+                                    ${restaurants.length > 3 ? `<span class="restaurant-tag">+${restaurants.length - 3}</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="card-actions">
+                                <button class="action-btn primary" onclick="event.stopPropagation(); focusDishRestaurants(${dish.id})">
+                                    ${t('buttons.showRestaurants')}
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const restaurantsHtml = filteredRestaurants.map(restaurant => {
+                    const distance = userLocation ? 
+                        calculateDistance(userLocation.lat, userLocation.lng, restaurant.latitude, restaurant.longitude) : 
+                        null;
+
+                    return `
+                        <div class="result-card" id="card-${restaurant.id}" onclick="focusRestaurant(${restaurant.id})">
+                            <div class="card-header">
+                                <div class="card-name">${restaurant.name}</div>
+                                <div class="card-rating">⭐ ${restaurant.rating}</div>
+                            </div>
+                            <div class="card-type">🏪 ${restaurant.type}</div>
+                            ${distance ? `<div class="card-distance">📍 ${distance.toFixed(1)} ${t('units.km')}</div>` : ''}
+                            <div class="card-address">${restaurant.address}</div>
+                            <div class="card-actions">
+                                <button class="action-btn primary" onclick="event.stopPropagation(); focusRestaurant(${restaurant.id})">
+                                    ${t('buttons.map')}
+                                </button>
+                                ${userLocation ? `
+                                <button class="action-btn secondary" onclick="event.stopPropagation(); showRoute(${restaurant.id})">
+                                    ${t('buttons.route')}
+                                </button>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = dishesHtml + restaurantsHtml;
                 return;
             }
             
@@ -1427,7 +1532,9 @@
             });
             
             // Сбрасываем результаты при смене типа поиска
-            foundDishes = [];
+            if (type !== 'all') {
+                foundDishes = [];
+            }
             
             // Re-run search if there's a query
             const query = document.getElementById('searchInput').value.trim();
@@ -1535,25 +1642,24 @@
                     const foundRestaurants = searchResults.restaurants || [];
                     const foundDishesAll = searchResults.dishes || [];
                     
-                    if (foundRestaurants.length > 0) {
-                        filteredRestaurants = allRestaurants.filter(r => 
-                            foundRestaurants.some(fr => fr.id === r.id)
-                        );
-                        foundDishes = []; // Очищаем найденные блюда
-                    } else if (foundDishesAll.length > 0) {
-                        const restaurantIds = new Set();
-                        foundDishesAll.forEach(dish => {
-                            if (dish.restaurants) {
-                                dish.restaurants.forEach(rid => restaurantIds.add(rid));
-                            }
+                    foundDishes = foundDishesAll;
+                    filteredRestaurants = foundRestaurants.length > 0 ? 
+                        allRestaurants.filter(r => foundRestaurants.some(fr => fr.id === r.id)) : 
+                        allRestaurants.filter(r => {
+                            const restaurantIds = new Set();
+                            foundDishesAll.forEach(dish => {
+                                if (dish.restaurants) {
+                                    dish.restaurants.forEach(rid => restaurantIds.add(rid));
+                                }
+                            });
+                            return restaurantIds.has(r.id);
                         });
-                        filteredRestaurants = allRestaurants.filter(r => restaurantIds.has(r.id));
-                        foundDishes = []; // Не показываем блюда в общем поиске
-                        showNotification(`Найдено ${foundDishesAll.length} блюд в ${restaurantIds.size} ресторанах`, 'info');
-                    } else {
-                        filteredRestaurants = [];
-                        foundDishes = [];
+                    
+                    if (foundRestaurants.length === 0 && foundDishesAll.length === 0) {
                         showNotification('Ничего не найдено', 'warning');
+                    } else {
+                        const totalFound = foundRestaurants.length + foundDishesAll.length;
+                        showNotification(`Найдено ${foundRestaurants.length} ресторанов и ${foundDishesAll.length} блюд`, 'info');
                     }
                 }
                 
