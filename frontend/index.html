@@ -1186,7 +1186,8 @@
                 // Загружаем рестораны
                 const restaurantsResponse = await fetch('./database/БД(Заведений) (2).json');
                 if (!restaurantsResponse.ok) throw new Error('Failed to load restaurants data');
-                allRestaurants = await restaurantsResponse.json();
+                const restaurantsData = await restaurantsResponse.json();
+                allRestaurants = restaurantsData.restaurants || [];
                 
                 // Загружаем блюда
                 const dishesResponse = await fetch('./database/dishes_export.json');
